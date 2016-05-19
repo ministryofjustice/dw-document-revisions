@@ -876,7 +876,7 @@ class Document_Revisions {
 
 			$latest_attachment = reset( $attachments );
 			$revisions[0]->post_content = $latest_attachment->ID;
-
+			$revision = $revisions[0];
 		}
 
 		return $revision;
