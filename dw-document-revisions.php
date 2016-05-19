@@ -737,9 +737,7 @@ class Document_Revisions {
 		//fake the filename
 		$filename = $post->post_name;
 		$filename .= ( $version == '' ) ? '' : __( '-revision-', 'wp-document-revisions' ) . $version;
-
-
-
+		
 		//we want the true attachment URL, not the permalink, so temporarily remove our filter
 		remove_filter( 'wp_get_attachment_url', array( &$this, 'attachment_url_filter' ) );
 		$filename .= $this->get_extension( wp_get_attachment_url( $revision->ID ) );
