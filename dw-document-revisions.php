@@ -738,6 +738,8 @@ class Document_Revisions {
 		$filename = $post->post_name;
 		$filename .= ( $version == '' ) ? '' : __( '-revision-', 'wp-document-revisions' ) . $version;
 
+
+
 		//we want the true attachment URL, not the permalink, so temporarily remove our filter
 		remove_filter( 'wp_get_attachment_url', array( &$this, 'attachment_url_filter' ) );
 		$filename .= $this->get_extension( wp_get_attachment_url( $revision->ID ) );
@@ -853,7 +855,19 @@ class Document_Revisions {
 
 		//verify that there's an upload ID in the content field
 		//if there's no upload ID for some reason, default to latest attached upload
-		if ( !is_numeric( $revisions[0]->post_content ) ) {
+
+		$revision_found = false;
+		$revision = '';
+
+		foreach ($revisions as $rev) {
+
+			if (is_numeric( $rev->post_content ) && !$revision_found) {
+				$revision_found = true;
+				$revision = $rev;
+			}
+		}
+
+		if (!$revision_found) {
 
 			$attachments = $this->get_attachments( $post );
 
@@ -865,7 +879,7 @@ class Document_Revisions {
 
 		}
 
-		return $revisions[0];
+		return $revision;
 
 	}
 
