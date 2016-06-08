@@ -155,6 +155,8 @@ class WPDocumentRevisions
     @$( '.timestamp').each => #loop through all timestamps and update the timestamp
       @$(this).text @human_time_diff( @$(this).attr('id') )
 
+  postDocumentUpload: (file, attachmentID) -> #callback to handle post document upload event
+
     #3.3+ verify the uploaded was successful
     if typeof( attachmentID ) == 'string' && attachmentID.indexOf( 'error' ) != -1
       return @$('.media-item:first').html attachmentID

@@ -1,6 +1,6 @@
 (function() {
   var WPDocumentRevisions,
-    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+      __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
   WPDocumentRevisions = (function() {
     WPDocumentRevisions.prototype.hasUpload = false;
@@ -154,12 +154,14 @@
     };
 
     WPDocumentRevisions.prototype.updateTimestamps = function() {
-      var file;
-      this.$('.timestamp').each((function(_this) {
+      return this.$('.timestamp').each((function(_this) {
         return function() {
           return _this.$(_this).text(_this.human_time_diff(_this.$(_this).attr('id')));
         };
       })(this));
+    };
+
+    WPDocumentRevisions.prototype.postDocumentUpload = function(file, attachmentID) {
       if (typeof attachmentID === 'string' && attachmentID.indexOf('error') !== -1) {
         return this.$('.media-item:first').html(attachmentID);
       }
