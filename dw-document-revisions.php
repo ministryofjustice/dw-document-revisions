@@ -31,9 +31,6 @@ License: GPL3
  *  @package DW_Document_Revisions
  */
 
-set_include_path(get_include_path() . PATH_SEPARATOR . dirname(__FILE__) . '/includes');
-//require_once "HTTP/WebDAV/Server.php";
-
 class Document_Revisions {
 	static $instance;
 	static $key_length = 32;
