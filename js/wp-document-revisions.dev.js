@@ -12,22 +12,10 @@
       this.postAutosaveCallback = __bind(this.postAutosaveCallback, this);
       this.overrideLock = __bind(this.overrideLock, this);
       this.restoreRevision = __bind(this.restoreRevision, this);
-      this.editDocument = __bind(this.editDocument, this);
       this.enableSubmit = __bind(this.enableSubmit, this);
       this.autosaveEnableButtons = __bind(this.autosaveEnableButtons, this);
       this.hijackAutosave = __bind(this.hijackAutosave, this);
-      var buttonError;
       this.$ = $;
-      this.fNewDoc = false;
-      this.EditDocumentButton = null;
-      try {
-        this.EditDocumentButton = new ActiveXObject('SharePoint.OpenDocuments.3');
-        if (this.EditDocumentButton !== null) {
-          this.fNewDoc = true;
-        }
-      } catch (_error) {
-        buttonError = _error;
-      }
       this.$('#edit-desktop-button').click(this.editDocument);
       this.$('.revision').click(this.restoreRevision);
       this.$('#override_link').click(this.overrideLock);
@@ -57,37 +45,6 @@
 
     WPDocumentRevisions.prototype.enableSubmit = function() {
       return this.$(':button, :submit', '#submitpost').removeAttr('disabled');
-    };
-
-    WPDocumentRevisions.prototype.editDocument = function(e) {
-      var error, ffPlugin, file;
-      e.preventDefault();
-      file = this.$(e.target).attr('href');
-      if (this.fNewDoc) {
-        if (!this.EditDocumentButton.EditDocument(file)) {
-          if (typeof convertEntities === 'function') {
-            wp_document_revisions.desktopEditRuntimeError = convertEntities(wp_document_revisions.desktopEditRuntimeError);
-          }
-          this.window.jQuery('#lock_override').before(wp_document_revisions.desktopEditRuntimeError).prev().fadeIn();
-          return this.window.jQuery("#edit-desktop-button").remove();
-        }
-      } else {
-        try {
-          ffPlugin = document.getElementById("winFirefoxPlugin");
-          ffPlugin.EditDocument(file, null);
-        } catch (_error) {
-          error = _error;
-          if (typeof convertEntities === 'function') {
-            wp_document_revisions.desktopEditNotSupportedError = convertEntities(wp_document_revisions.desktopEditNotSupportedError);
-          }
-          this.window.jQuery('#lock_override').before(wp_document_revisions.desktopEditNotSupportedError).prev().fadeIn();
-          return this.window.jQuery("#edit-desktop-button").remove();
-        }
-      }
-      if (typeof convertEntities === 'function') {
-        wp_document_revisions.postDesktopNotice = convertEntities(wp_document_revisions.postDesktopNotice);
-      }
-      return this.window.jQuery('#lock_override').before(wp_document_revisions.postDesktopNotice).prev().fadeIn();
     };
 
     WPDocumentRevisions.prototype.restoreRevision = function(e) {
@@ -197,14 +154,12 @@
     };
 
     WPDocumentRevisions.prototype.updateTimestamps = function() {
-      return this.$('.timestamp').each((function(_this) {
+      var file;
+      this.$('.timestamp').each((function(_this) {
         return function() {
           return _this.$(_this).text(_this.human_time_diff(_this.$(_this).attr('id')));
         };
       })(this));
-    };
-
-    WPDocumentRevisions.prototype.postDocumentUpload = function(file, attachmentID) {
       if (typeof attachmentID === 'string' && attachmentID.indexOf('error') !== -1) {
         return this.$('.media-item:first').html(attachmentID);
       }
