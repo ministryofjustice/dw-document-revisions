@@ -256,8 +256,8 @@ class Document_Revisions_Admin {
 		add_meta_box( 'revision-summary', __('Revision Summary', 'wp-document-revisions'), array(&$this, 'revision_summary_cb'), 'document', 'normal', 'default' );
 		add_meta_box( 'document', __('Document', 'wp-document-revisions'), array(&$this, 'document_metabox'), 'document', 'normal', 'high' );
 
-		if ( $post->post_content != '' )
-			add_meta_box( 'revision-log', 'Revision Log', array( &$this, 'revision_metabox'), 'document', 'normal', 'low' );
+
+		add_meta_box( 'revision-log', 'Revision Log', array( &$this, 'revision_metabox'), 'document', 'normal', 'low' );
 
 		if ( taxonomy_exists( 'workflow_state' )  && ! $this->disable_workflow_states() )
 			add_meta_box( 'workflow-state', __('Workflow State', 'wp-document-revisions'), array( &$this, 'workflow_state_metabox_cb'), 'document', 'side', 'default' );
@@ -383,6 +383,8 @@ class Document_Revisions_Admin {
 		$can_edit_post = current_user_can( 'edit_post', $post->ID );
 		$revisions = $this->get_revisions( $post->ID );
 		$key = $this->get_feed_key();
+
+		if (count($revisions) > 1) {
 ?>
 		<table id="document-revisions">
 			<tr class="header">
@@ -412,6 +414,12 @@ class Document_Revisions_Admin {
 		</table>
 		<p style="padding-top: 10px;"><a href="<?php echo add_query_arg( 'key', $key, get_post_comments_feed_link( $post->ID ) ); ?>"><?php _e( 'RSS Feed', 'wp-document-revisions' ); ?></a></p>
 		<?php
+		}
+		else {
+		?>
+		<p>No Revisions Found</p>
+		<?php
+		}
 	}
 
 
