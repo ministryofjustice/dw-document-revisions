@@ -33,10 +33,8 @@ class Document_Revisions_Admin {
 		add_action( 'admin_head', array(&$this, 'add_help_tab') ); //3.3+
 
 		//edit document screen
-		add_action( 'admin_head', array( &$this, 'make_private' ) );
 		add_filter( 'media_meta', array( &$this, 'media_meta_hack'), 10, 1);
 		add_filter( 'media_upload_form_url', array( &$this, 'post_upload_handler' ) );
-		add_action( 'save_post', array( &$this, 'workflow_state_save' ) );
 		add_action( 'admin_init', array( &$this, 'enqueue_edit_scripts' ) );
 		add_action( '_wp_put_post_revision', array( &$this, 'revision_filter'), 10, 1 );
 		add_filter( 'default_hidden_meta_boxes', array( &$this, 'hide_postcustom_metabox'), 10, 2 );
@@ -45,12 +43,7 @@ class Document_Revisions_Admin {
 
 		//document list
 		add_filter( 'manage_edit-document_columns', array( &$this, 'rename_author_column' ) );
-		add_filter( 'manage_edit-document_columns', array( &$this, 'add_workflow_state_column' ) );
-		add_action( 'manage_document_posts_custom_column', array( &$this, 'workflow_state_column_cb' ), 10, 2 );
-		add_filter( 'manage_edit-document_columns', array( &$this, 'add_currently_editing_column' ), 20 );
-		add_action( 'manage_document_posts_custom_column', array( &$this, 'currently_editing_column_cb' ), 10, 2 );
 		add_action( 'restrict_manage_posts', array( &$this, 'filter_documents_list' ) );
-		add_filter( 'parse_query', array( &$this, 'convert_id_to_term' ) );
 
 		//settings
 		add_action( 'admin_init', array( &$this, 'settings_fields') );
@@ -73,9 +66,6 @@ class Document_Revisions_Admin {
 
 		//cleanup
 		add_action( 'delete_post', array( &$this, 'delete_attachments_with_document'), 10, 1 );
-
-		//edit flow support
-		add_action( 'admin_init', array( &$this, 'disable_workflow_states' ), 20 );
 
 		//admin css
 		add_filter( 'admin_body_class', array( &$this, 'admin_body_class_filter' ) );
@@ -184,21 +174,18 @@ class Document_Revisions_Admin {
 			'document' => array(
 				__( 'Basic Usage', 'wp-document-revisions' ) =>
 				'<p>' . __( 'This screen allows users to collaboratively edit documents and track their revision history. To begin, enter a title for the document, click <code>Upload New Version</code> and select the file from your computer.', 'wp-document-revisions' ) . '</p>' .
-				'<p>' . __( 'Once successfully uploaded, you can enter a revision log message, assign the document an author, and describe its current workflow state.', 'wp-document-revisions' ) . '</p>' .
+				'<p>' . __( 'Once successfully uploaded, you can enter a revision log message, assign the document an author.', 'wp-document-revisions' ) . '</p>' .
 				'<p>' . __( 'When done, simply click <code>Update</code> to save your changes', 'wp-document-revisions' ) . '</p>',
 				__( 'Revision Log', 'wp-document-revisions' ) =>
 				'<p>' . __( 'The revision log provides a short summary of the changes reflected in a particular revision. Used widely in the open-source community, it provides a comprehensive history of the document at a glance.', 'wp-document-revisions' ) . '</p>' .
 				'<p>' . __( 'You can download and view previous versions of the document by clicking the timestamp in the revision log. You can also restore revisions by clicking the <code>restore</code> button beside the revision.', 'wp-document-revisions' ) . '</p>',
-				__( 'Workflow State', 'wp-document-revisions' ) =>
-				'<p>' . __( 'The workflow state field can be used to help team members understand at what stage a document sits within a particular organization&quot;s workflow. The field is optional, and can be customized or queried by clicking <code>Workflow States</code> on the left-hand side.', 'wp-document-revisions' ) . '</p>',
 				__( 'Publishing Documents', 'wp-document-revisions' ) =>
 				'<p>' . __( 'By default, uploaded documents are only accessible to logged in users. Documents can be published, thus making them accessible to the world, by toggling their visibility in the "Publish" box in the top right corner. Any document marked as published will be accessible to anyone with the proper URL.', 'wp-document-revisions' ) . '</p>',
 			),
 			'edit-document' => array(
 				__( 'Documents', 'wp-document-revisions' ) =>
 				'<p>' . __( 'Below is a list of all documents to which you have access. Click the document title to edit the document or download the latest version.', 'wp-document-revisions' ) . '</p>' .
-				'<p>' . __( 'To add a new document, click <strong>Add Document</strong> on the left-hand side.', 'wp-document-revisions' ) . '</p>' .
-				'<p>' . __( 'To view all documents at a particular workflow state, click <strong>Workflow States</strong> in the menu on the left.', 'wp-document-revisions' ) . '</p>',
+				'<p>' . __( 'To add a new document, click <strong>Add Document</strong> on the left-hand side.', 'wp-document-revisions' ) . '</p>'
 			),
 		);
 
@@ -250,18 +237,12 @@ class Document_Revisions_Admin {
 		//remove unused meta boxes
 		remove_meta_box( 'revisionsdiv', 'document', 'normal' );
 		remove_meta_box( 'postexcerpt', 'document', 'normal' );
-		remove_meta_box( 'tagsdiv-workflow_state', 'document', 'side' );
 
 		//add our meta boxes
 		add_meta_box( 'revision-summary', __('Revision Summary', 'wp-document-revisions'), array(&$this, 'revision_summary_cb'), 'document', 'normal', 'default' );
 		add_meta_box( 'document', __('Document', 'wp-document-revisions'), array(&$this, 'document_metabox'), 'document', 'normal', 'high' );
 
-
 		add_meta_box( 'revision-log', 'Revision Log', array( &$this, 'revision_metabox'), 'document', 'normal', 'low' );
-
-		if ( taxonomy_exists( 'workflow_state' )  && ! $this->disable_workflow_states() )
-			add_meta_box( 'workflow-state', __('Workflow State', 'wp-document-revisions'), array( &$this, 'workflow_state_metabox_cb'), 'document', 'side', 'default' );
-
 
 		//move author div to make room for ours
 		remove_meta_box( 'authordiv', 'document', 'normal' );
@@ -836,30 +817,6 @@ class Document_Revisions_Admin {
 		global $typenow, $wp_query;
 		// Only applies to document post type
 		if ( $typenow == 'document' ) {
-
-			// Filter by workflow state/edit flow state
-			$tax_slug = 'workflow_state';
-			if ( $this->disable_workflow_states() ) {
-				$tax_slug = EF_Custom_Status::taxonomy_key;
-			}
-			$args = array(
-				'name' => 'workflow_state',
-				'show_option_all' => __( 'All workflow states', 'wp-document-revisions' ),
-				'hide_empty' => false,
-				'taxonomy' => $tax_slug,
-			);
-
-			// set selected workflow state
-			if (isset($wp_query->query[$tax_slug])) {
-				$termID = $wp_query->query[$tax_slug];
-				if ( ! is_numeric ( $termID ) ) {
-					$term = get_term_by( 'slug', $wp_query->query[$tax_slug], $tax_slug );
-					$termID = $term->term_id;
-				}
-				$args['selected'] = $termID;
-				wp_dropdown_categories( $args );
-			}
-
 			// author/owner filtering
 			$args = array(
 				'name' => 'author',
@@ -869,24 +826,6 @@ class Document_Revisions_Admin {
 				$args['selected'] = $_GET['author'];
 			}
 			wp_dropdown_users( $args );
-		}
-	}
-
-	/**
-	 * Converts id to term used in filter dropdown
-	 */
-	function convert_id_to_term( $query ) {
-		global $pagenow, $typenow;
-		if ( 'edit.php' == $pagenow && $typenow == 'document' ) {
-			$tax_slug = 'workflow_state';
-			if ( $this->disable_workflow_states() ) {
-				$tax_slug = EF_Custom_Status::taxonomy_key;
-			}
-			$var = &$query->query_vars[$tax_slug];
-			if ( isset( $var ) && is_numeric( $var ) ) {
-				$term = get_term_by( 'id', $var, $tax_slug );
-				$var = $term->slug;
-			}
 		}
 	}
 
@@ -903,161 +842,6 @@ class Document_Revisions_Admin {
 
 		return $defaults;
 	}
-
-
-	/**
-	 * Splices workflow state column as 2nd (3rd) column on documents page
-	 * @since 0.5
-	 * @param array $defaults the original columns
-	 * @returns array our spliced columns
-	 */
-	function add_workflow_state_column( $defaults ) {
-
-		//get checkbox and title
-		$output = array_slice( $defaults, 0, 2 );
-
-		//splice in workflow state
-		$output['workflow_state'] = __( 'Workflow State', 'wp-document-revisions' );
-
-		//get the rest of the columns
-		$output = array_merge( $output, array_slice( $defaults, 2 ) );
-
-		//return
-		return $output;
-	}
-
-
-	/**
-	 * Callback to output data for workflow state column
-	 * @since 0.5
-	 * @param string $column_name the name of the column being propegated
-	 * @param int $post_id the ID of the post being displayed
-	 */
-	function workflow_state_column_cb( $column_name, $post_id ) {
-
-		//verify column
-		if ( 'workflow_state' == $column_name && $this->verify_post_type( $post_id ) ) {
-
-			//get terms
-			$state = wp_get_post_terms( $post_id, 'workflow_state' );
-
-			//verify state exists
-			if ( sizeof( $state ) == 0)
-				return;
-
-			//output (no return)
-			echo '<a href="' . esc_url( add_query_arg( 'workflow_state', $state[0]->slug) ) . '">' . $state[0]->name . '</a>';
-		}
-	}
-
-
-	/**
-	 * Splices in Currently Editing column to document list
-	 * @since 1.1
-	 * @param array $defaults the original columns
-	 * @returns array our spliced columns
-	 */
-	function add_currently_editing_column( $defaults ) {
-
-		//get checkbox, title, and workflow state
-		$output = array_slice( $defaults, 0, 3 );
-
-		//splice in workflow state
-		$output['currently_editing'] = __( 'Currently Editing', 'wp-document-revisions' );
-
-		//get the rest of the columns
-		$output = array_merge( $output, array_slice( $defaults, 2 ) );
-
-		//return
-		return $output;
-	}
-
-
-	/**
-	 * Callback to output data for currently editing column
-	 * @since 1.1
-	 * @param string $column_name the name of the column being propegated
-	 * @param int $post_id the ID of the post being displayed
-	 */
-	function currently_editing_column_cb( $column_name, $post_id ) {
-
-		//verify column
-		if ( 'currently_editing' == $column_name && $this->verify_post_type( $post_id ) ) {
-
-			//output will be display name, if any
-			if ( $lock = $this->get_document_lock( $post_id ) )
-				echo $lock;
-		}
-	}
-
-
-	/**
-	 * Callback to generate metabox for workflow state
-	 * @since 0.5
-	 * @param object $post the post object
-	 */
-	function workflow_state_metabox_cb( $post ) {
-
-		wp_nonce_field( plugin_basename( __FILE__ ), 'workflow_state_nonce' );
-
-		$current_state = wp_get_post_terms( $post->ID, 'workflow_state' );
-		$states = get_terms( 'workflow_state', array( 'hide_empty'=> false ) );
-?>
-		<label for="workflow_state"><?php _e( 'Current State', 'wp-document-revisions' ); ?>:</label>
-		<select name="workflow_state" id="workflow_state">
-			<option></option>
-			<?php foreach ( $states as $state ) { ?>
-			<option value="<?php echo $state->slug; ?>" <?php if ( $current_state ) selected( $current_state[0]->slug, $state->slug ); ?>><?php echo $state->name; ?></option>
-			<?php } ?>
-		</select>
-		<?php
-
-	}
-
-
-	/**
-	 * Callback to save workflow_state metbox
-	 * @since 0.5
-	 * @param int $post_id the ID of the post being edited
-	 */
-	function workflow_state_save( $post_id ) {
-
-		//verify form submit
-		if ( !$_POST || !isset( $_POST['workflow_state_nonce'] ) )
-			return;
-
-		//autosave check
-		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE )
-			return;
-
-		//verify CPT
-		if ( !$this->verify_post_type( $post_id ) )
-			return;
-
-		//nonce is a funny word
-		if ( !wp_verify_nonce( $_POST['workflow_state_nonce'], plugin_basename( __FILE__ ) ) )
-			return;
-
-		//check permissions
-		if ( !current_user_can( 'edit_post', $post_id ) )
-			return;
-
-		//associate taxonomy with parent, not revision
-		if ( wp_is_post_revision( $post_id ) )
-			$post_id = wp_is_post_revision( $post_id );
-
-		$old = wp_get_post_terms( $post_id,  'workflow_state', true );
-
-		//no change, keep moving
-		if ( isset( $old[0] ) && $old[0]->slug == $_POST['workflow_state'] )
-			return;
-
-		//all's good, let's save
-		wp_set_post_terms( $post_id, array( $_POST['workflow_state'] ), 'workflow_state' );
-
-		do_action( 'change_document_workflow_state', $post_id, $_POST['workflow_state'] );
-	}
-
 
 	/**
 	 * Slightly modified document author metabox because the current one is ugly
@@ -1219,33 +1003,4 @@ class Document_Revisions_Admin {
 		if ( is_numeric( $post->post_content ) && get_post( $post->post_content ) )
 			wp_delete_attachment( $post->post_content, false );
 	}
-
-
-	/**
-	 * Provides support for edit flow and disables the default workflow state taxonomy
-	 * @since 1.1
-	 * @return unknown
-	 */
-	function edit_flow_admin_support() {
-		_deprecated_function( 'edit_flow_admin_support', '1.3.2 of WP Document Revisions', 'disable_workflow_states' );
-	}
-
-
-	/**
-	 * Remove all hooks that activate workflow state support
-	 * use filter `document_use_workflow_states` to disable
-	 */
-	function disable_workflow_states() {
-
-		if ( self::$parent->use_workflow_states() )
-			return false;
-
-		remove_filter( 'manage_edit-document_columns', array( &$this, 'add_workflow_state_column' ) );
-		remove_action( 'manage_document_posts_custom_column', array( &$this, 'workflow_state_column_cb' ) );
-		remove_action( 'save_post', array( &$this, 'workflow_state_save' ) );
-		remove_action( 'admin_head', array( &$this, 'make_private' ) );
-		return true;
-	}
-
-
 }

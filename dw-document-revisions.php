@@ -52,7 +52,6 @@ class Document_Revisions {
 		//CPT/CT
 		add_action( 'init', array( &$this, 'register_cpt' ) );
 		add_action( 'init', array( &$this, 'register_ct' ), 15 ); //note: priority must be > 11 to allow for edit flow support
-		add_action( 'admin_init', array( &$this, 'initialize_workflow_states' ) );
 		register_activation_hook( __FILE__, array( &$this, 'add_caps' ) );
 		add_filter( 'the_content', array( &$this, 'content_filter' ), 1 );
 		add_action( 'wp_loaded', array( &$this, 'register_term_count_cb' ), 100, 1 );
@@ -92,10 +91,6 @@ class Document_Revisions {
 
 		//cache
 		add_action( 'save_post', array( &$this, 'clear_cache' ), 10, 1 );
-
-		//edit flow
-		add_action( 'init', array( &$this, 'edit_flow_support' ), 11 );
-		add_action( 'init', array( &$this, 'use_workflow_states' ), 50 );
 
 		//load front-end features (shortcode, widgets, etc.)
 		include dirname( __FILE__ ) . '/includes/front-end.php';
@@ -170,66 +165,6 @@ class Document_Revisions {
 		register_post_type( 'document', apply_filters( 'document_revisions_cpt', $args ) );
 
 	}
-
-
-	/**
-	 * Registers custom status taxonomy
-	 * @since 0.5
-	 */
-	function register_ct() {
-
-		$labels = array(
-			'name'              => _x( 'Workflow States', 'taxonomy general name', 'wp-document-revisions' ),
-			'singular_name'     => _x( 'Workflow State', 'taxonomy singular name', 'wp-document-revisions'),
-			'search_items'      => __( 'Search Workflow States', 'wp-document-revisions' ),
-			'all_items'         => __( 'All Workflow States', 'wp-document-revisions' ),
-			'parent_item'       => __( 'Parent Workflow State', 'wp-document-revisions' ),
-			'parent_item_colon' => __( 'Parent Workflow State:', 'wp-document-revisions' ),
-			'edit_item'         => __( 'Edit Workflow State', 'wp-document-revisions' ),
-			'update_item'       => __( 'Update Workflow State', 'wp-document-revisions' ),
-			'add_new_item'      => __( 'Add New Workflow State', 'wp-document-revisions' ),
-			'new_item_name'     => __( 'New Workflow State Name', 'wp-document-revisions' ),
-			'menu_name'         => __( 'Workflow States', 'wp-document-revisions' ),
-		);
-
-		register_taxonomy( 'workflow_state', array('document'), apply_filters( 'document_revisions_ct', array(
-					'hierarchical'          => false,
-					'labels'                => $labels,
-					'show_ui'               => true,
-					'rewrite'               => false,
-					'update_count_callback' => array( &$this, 'term_count_cb' ),
-				) ) );
-
-	}
-
-
-	/**
-	 * Propagates initial workflow states on plugin activation
-	 * @since 0.5
-	 * @return unknown
-	 */
-	function initialize_workflow_states() {
-
-		$terms = get_terms( 'workflow_state', array( 'hide_empty' => false ) );
-
-		if ( !empty( $terms ) )
-			return false;
-
-		$states = array(
-			__('In Progress', 'wp-document-revisions')   => __('Document is in the process of being written', 'wp-document-revisions'),
-			__('Initial Draft', 'wp-document-revisions') => __('Document is being edited and refined', 'wp-document-revisions'),
-			__('Under Review', 'wp-document-revisions')  => __('Document is pending final review', 'wp-document-revisions'),
-			__('Final', 'wp-document-revisions')         => __('Document is in its final form', 'wp-document-revisions'),
-		);
-
-		$states = apply_filters( 'default_workflow_states', $states );
-
-		foreach ( $states as $state => $desc ) {
-			wp_insert_term( $state, 'workflow_state', array( 'description' => $desc ) );
-		}
-
-	}
-
 
 	/**
 	 * Defaults document visibility to private
@@ -1421,68 +1356,6 @@ class Document_Revisions {
 			return $content;
 
 		return '';
-
-	}
-
-
-	/**
-	 * Provides support for edit flow and disables the default workflow state taxonomy
-	 * @return unknown
-	 */
-	function edit_flow_support() {
-
-		global $edit_flow;
-
-		//verify edit flow is enabled
-		if ( !class_exists( 'EF_Custom_Status' ) || !apply_filters( 'document_revisions_use_edit_flow', true ) )
-			return false;
-
-		//verify proper firing order
-		if ( !did_action( 'ef_init' ) ) {
-			_doing_it_wrong( 'edit_flow_support', 'Cannot call before ef_init has fired', null );
-			return false;
-		}
-
-		//verify custom_status is enabled
-		if ( !$edit_flow->custom_status->module_enabled( 'custom_status' ) )
-			return false;
-
-		//prevent errors if options aren't init'd yet
-		if ( !isset( $edit_flow->custom_status->module->options->post_types['document'] ) )
-			return false;
-
-		//check if enabled
-		if ( $edit_flow->custom_status->module->options->post_types['document'] == 'off' )
-			return false;
-
-		add_filter( 'document_use_workflow_states', '__return_false' );
-
-		return true;
-
-	}
-
-
-	/**
-	 * Toggles workflow states on and off
-	 * @return bool true if workflow states are on, otherwise false
-	 */
-	function use_workflow_states() {
-
-		return apply_filters( 'document_use_workflow_states', true );
-
-	}
-
-
-	/**
-	 * Removes front-end hooks to add workflow state support
-	 */
-	function disable_workflow_states() {
-
-		if ( $this->use_workflow_states() )
-			return;
-
-		remove_action( 'admin_init', array( &$this, 'initialize_workflow_states' ) );
-		remove_action( 'init', array( &$this, 'register_ct' ), 15 );
 
 	}
 
