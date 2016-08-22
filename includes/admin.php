@@ -53,11 +53,6 @@ class Document_Revisions_Admin {
 		add_action( 'network_admin_notices', array( &$this, 'network_settings_errors' ) );
 		add_filter( 'wp_redirect', array( &$this, 'network_settings_redirect' ) );
 
-		//profile
-		add_action( 'show_user_profile', array( $this, 'rss_key_display' ) );
-		add_action( 'personal_options_update', array( &$this, 'profile_update_cb' ) );
-		add_action( 'edit_user_profile_update', array( &$this, 'profile_update_cb' ) );
-
 		//Queue up JS
 		add_action( 'admin_enqueue_scripts', array( &$this, 'enqueue' ) );
 
@@ -174,7 +169,7 @@ class Document_Revisions_Admin {
 			'document' => array(
 				__( 'Basic Usage', 'wp-document-revisions' ) =>
 				'<p>' . __( 'This screen allows users to collaboratively edit documents and track their revision history. To begin, enter a title for the document, click <code>Upload New Version</code> and select the file from your computer.', 'wp-document-revisions' ) . '</p>' .
-				'<p>' . __( 'Once successfully uploaded, you can enter a revision log message, assign the document an author.', 'wp-document-revisions' ) . '</p>' .
+				'<p>' . __( 'Once successfully uploaded, you can enter a revision log message and assign the document an author.', 'wp-document-revisions' ) . '</p>' .
 				'<p>' . __( 'When done, simply click <code>Update</code> to save your changes', 'wp-document-revisions' ) . '</p>',
 				__( 'Revision Log', 'wp-document-revisions' ) =>
 				'<p>' . __( 'The revision log provides a short summary of the changes reflected in a particular revision. Used widely in the open-source community, it provides a comprehensive history of the document at a glance.', 'wp-document-revisions' ) . '</p>' .
@@ -363,7 +358,6 @@ class Document_Revisions_Admin {
 
 		$can_edit_post = current_user_can( 'edit_post', $post->ID );
 		$revisions = $this->get_revisions( $post->ID );
-		$key = $this->get_feed_key();
 
 		if (count($revisions) > 1) {
 ?>
@@ -393,7 +387,6 @@ class Document_Revisions_Admin {
 		}
 ?>
 		</table>
-		<p style="padding-top: 10px;"><a href="<?php echo add_query_arg( 'key', $key, get_post_comments_feed_link( $post->ID ) ); ?>"><?php _e( 'RSS Feed', 'wp-document-revisions' ); ?></a></p>
 		<?php
 		}
 		else {
@@ -739,77 +732,6 @@ class Document_Revisions_Admin {
  		<?php endif;
 	}
 
-
-	/**
-	 * Callback to add RSS key field to profile page
-	 * @since 0.5
-	 */
-	function rss_key_display( ) {
-		$key = $this->get_feed_key();
-?>
-		<div class="tool-box">
-		<h3> <?php _e( 'Feed Privacy', 'wp-document-revisions' ); ?></h3>
-		<table class="form-table">
-			<tr id="document_revisions_feed_key">
-				<th><label for="feed_key"><?php _e( 'Secret Feed Key', 'wp-document-revisions' ); ?></label></th>
-				<td>
-					<input type="text" value="<?php echo esc_attr( $key ); ?>" class="regular-text" readonly="readonly" /><br />
-					<span class="description"><?php _e( 'To protect your privacy, you need to append a key to feeds for use in feed readers.', 'wp-document-revisions' ); ?></span><br />
-					<?php wp_nonce_field( 'generate-new-feed-key', '_document_revisions_nonce' ); ?>
-					<?php submit_button( __( 'Generate New Key', 'wp-document-revisions' ), 'secondary', 'generate-new-feed-key', false ); ?>
-
-				</td>
-			</tr>
-		</table>
-		<?php
-	}
-
-
-	/**
-	 * Retrieves feed key user meta; generates if necessary
-	 * @since 0.5
-	 * @param int $user (optional) UserID
-	 * @returns string the feed key
-	 */
-	function get_feed_key( $user = null ) {
-
-		$key = get_user_option( $this->meta_key, $user );
-
-		if ( !$key )
-			$key = $this->generate_new_feed_key();
-
-		return $key;
-	}
-
-
-	/**
-	 * Generates, saves, and returns new feed key
-	 * @since 0.5
-	 * @param int $user (optional) UserID
-	 * @returns string feed key
-	 */
-	function generate_new_feed_key( $user = null ) {
-
-		if ( !$user )
-			$user = get_current_user_id();
-
-		$key = wp_generate_password( $this->key_length, false, false );
-		update_user_option( $user, $this->meta_key, $key );
-
-		return $key;
-	}
-
-
-	/**
-	 * Callback to handle profile updates
-	 * @since 0.5
-	 */
-	function profile_update_cb() {
-
-		if ( isset( $_POST['generate-new-feed-key'] ) && isset( $_POST['_document_revisions_nonce'] ) && wp_verify_nonce( $_POST['_document_revisions_nonce'], 'generate-new-feed-key' ) )
-			$this->generate_new_feed_key();
-	}
-
 	/**
 	 * Allow some filtering of the All Documents list
 	 */
@@ -861,17 +783,6 @@ class Document_Revisions_Admin {
 				'include_selected' => true
 			) );
 	}
-
-
-	/**
-	 * Back Compat
-	 */
-	function enqueue_js() {
-		_deprecated_function( __FUNCTION__, '1.3.2 of WP Document Revisions', 'enqueue' );
-		$this->enqueue();
-
-	}
-
 
 	/**
 	 * Enqueue admin JS and CSS files

@@ -33,8 +33,6 @@ License: GPL3
 
 class Document_Revisions {
 	static $instance;
-	static $key_length = 32;
-	static $meta_key   = 'document_revisions_feed_key';
 	public $version = '2.0.0';
 
 	/**
@@ -65,16 +63,13 @@ class Document_Revisions {
 		add_action( 'parse_request', array( &$this, 'ie_cache_fix' ) );
 		add_filter( 'query_vars', array(&$this, 'add_query_var'), 10, 4 );
 		register_activation_hook( __FILE__, 'flush_rewrite_rules' );
-		add_filter( 'default_feed', array( &$this, 'hijack_feed' ), 10, 2);
-		add_action( 'do_feed_revision_log', array( &$this, 'do_feed_revision_log' ) );
-		add_action( 'template_redirect', array( $this, 'revision_feed_auth' ) );
 		add_filter( 'get_sample_permalink_html', array(&$this, 'sample_permalink_html_filter'), 10, 4);
 		add_filter( 'wp_get_attachment_url', array( &$this, 'attachment_url_filter' ), 10, 2 );
 		add_filter( 'image_downsize', array( &$this, 'image_downsize'), 10, 3 );
 		add_filter( 'document_path', array( &$this, 'wamp_document_path_filter' ), 9, 1 );
 		add_filter( 'redirect_canonical', array( &$this, 'redirect_canonical_filter' ), 10, 2 );
 
-		//RSS
+		// Format post titles
 		add_filter( 'private_title_format', array( &$this, 'no_title_prepend' ), 20, 1 );
 		add_filter( 'protected_title_format', array( &$this, 'no_title_prepend' ), 20, 1 );
 		add_filter( 'the_title', array( &$this, 'add_revision_num_to_title' ), 20, 1 );
@@ -340,9 +335,6 @@ class Document_Revisions {
 		//revisions in the form of yyyy/mm/[slug]-revision-##.[extension], yyyy/mm/[slug]-revision-##.[extension]/, yyyy/mm/[slug]-revision-##/ and yyyy/mm/[slug]-revision-##
 		$my_rules[ $slug . '/([0-9]{4})/([0-9]{1,2})/([^.]+)-' . __( 'revision', 'wp-document-revisions' ) . '-([0-9]+)\.[A-Za-z0-9]{3,4}/?$'] = 'index.php?year=$matches[1]&monthnum=$matches[2]&document=$matches[3]&revision=$matches[4]';
 
-		//revision feeds in the form of yyyy/mm/[slug]-revision-##.[extension]/feed/, yyyy/mm/[slug]-revision-##/feed/, etc.
-		$my_rules[ $slug . '/([0-9]{4})/([0-9]{1,2})/([^.]+)(\.[A-Za-z0-9]{3,4})?/feed/?$'] = 'index.php?year=$matches[1]&monthnum=$matches[2]&document=$matches[3]&feed=feed';
-
 		//documents in the form of yyyy/mm/[slug]-revision-##.[extension], yyyy/mm/[slug]-revision-##.[extension]/
 		$my_rules[ $slug . '/([0-9]{4})/([0-9]{1,2})/([^.]+)\.[A-Za-z0-9]{3,4}/?$'] = 'index.php?year=$matches[1]&monthnum=$matches[2]&document=$matches[3]';
 
@@ -495,31 +487,6 @@ class Document_Revisions {
 		wp_cache_set( $postID, $revs, 'document_revisions' );
 
 		return $revs;
-
-	}
-
-
-	/**
-	 * Returns a modified WP Query object of a document and its revisions
-	 * Corrects the authors bug
-	 * @since 1.0.4
-	 * @param int $postID the ID of the document
-	 * @param bool $feed (optional) whether this is a feed
-	 * @return obj|bool the WP_Query object, false on failure
-	 */
-	function get_revision_query( $postID, $feed = false ) {
-
-		$posts = $this->get_revisions( $postID );
-
-		if ( !$posts )
-			return false;
-
-		$rev_query = new WP_Query();
-		$rev_query->posts = $posts;
-		$rev_query->post_count = sizeof( $posts );
-		$rev_query->is_feed = $feed;
-
-		return $rev_query;
 
 	}
 
@@ -1013,94 +980,6 @@ class Document_Revisions {
 
 
 	/**
-	 * Callback to handle revision RSS feed
-	 * @since 0.5
-	 */
-	function do_feed_revision_log() {
-
-		//because we're in function scope, pass $post as a global
-		global $post;
-
-		//remove this filter to A) prevent trimming and B) to prevent WP from using the attachID if there's no revision log
-		remove_filter( 'get_the_excerpt', 'wp_trim_excerpt'  );
-		remove_filter( 'get_the_excerpt', 'twentyeleven_custom_excerpt_more' );
-
-		//include feed and die
-		include dirname( __FILE__ ) . '/includes/revision-feed.php';
-
-		global $wpdr;
-
-		return;
-
-	}
-
-
-	/**
-	 * Intercepts RSS feed redirect and forces our custom feed
-	 *
-	 * Note: Use `add_filter( 'document_custom_feed', '__return_false' )` to shortcircuit
-	 *
-	 * @since 0.5
-	 * @param string $default the original feed
-	 * @return string the slug for our feed
-	 */
-	function hijack_feed( $default ) {
-
-		if ( !$this->verify_post_type() || !apply_filters( 'document_custom_feed', true ) )
-			return $default;
-
-		return 'revision_log';
-
-	}
-
-
-	/**
-	 * Verifies that users are auth'd to view a revision feed
-	 *
-	 * Note: Use `add_filter( 'document_verify_feed_key', '__return_false' )` to shortcircuit
-	 *
-	 * @since 0.5
-	 */
-	function revision_feed_auth() {
-
-		if ( !$this->verify_post_type() || !apply_filters( 'document_verify_feed_key', true ) )
-			return;
-
-		if ( is_feed() && !$this->validate_feed_key() )
-				wp_die( __( 'Sorry, this is a private feed.', 'wp-document-revisions' ) );
-
-	}
-
-
-	/**
-	 * Checks feed key before serving revision RSS feed
-	 * @since 0.5
-	 * @return bool
-	 */
-	function validate_feed_key() {
-
-		global $wpdb;
-
-		//verify key exists
-		if ( empty( $_GET['key'] ) )
-			return false;
-
-		//make alphanumeric
-		$key = preg_replace( '/[^a-z0-9]/i', '', $_GET['key'] );
-
-		//verify length
-		if ( self::$key_length != strlen( $key ) )
-			return false;
-
-		//lookup key
-		if ( $wpdb->get_var( $wpdb->prepare( "SELECT user_id FROM $wpdb->usermeta WHERE meta_key = %s AND meta_value = %s", $wpdb->prefix . self::$meta_key, $key ) ) )
-			return true;
-
-		return false;
-	}
-
-
-	/**
 	 * Adds doc-specific caps to all roles so that 3rd party plugins can manage them
 	 * Gives admins all caps
 
@@ -1213,18 +1092,16 @@ class Document_Revisions {
 
 
 	/**
-	 * Removes Private or Protected from document titles in RSS feeds
+	 * Removes Private or Protected from document titles
 	 * @since 1.0
 	 * @param string $prepend the sprintf formatted string to prepend to the title
 	 * @return string just the string
 	 */
 	function no_title_prepend( $prepend ) {
-
 		if ( !$this->verify_post_type() )
 			return $prepend;
 
 		return '%s';
-
 	}
 
 
@@ -1243,12 +1120,7 @@ class Document_Revisions {
 
 		//if this is a document, and not a revision, just filter and return the title
 		if ( $post->post_type != 'revision' ) {
-
-			if ( is_feed() )
-				$title = sprintf( __( '%s - Latest Revision', 'wp-document-revisions'), $title );
-
 			return apply_filters( 'document_title',  $title );
-
 		}
 
 		//get revision num
