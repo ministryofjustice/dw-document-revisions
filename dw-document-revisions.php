@@ -85,9 +85,6 @@ class Document_Revisions {
 		add_filter( 'wp_handle_upload_prefilter', array(&$this, 'filename_rewrite' ) );
 		add_filter( 'wp_handle_upload', array( &$this, 'rewrite_file_url' ), 10, 2);
 
-		//locking
-		add_action( 'wp_ajax_override_lock', array( &$this, 'override_lock' ) );
-
 		//cache
 		add_action( 'save_post', array( &$this, 'clear_cache' ), 10, 1 );
 
@@ -1100,79 +1097,6 @@ class Document_Revisions {
 			return true;
 
 		return false;
-	}
-
-
-	/**
-	 * Ajax Callback to change filelock on lock override
-	 *
-	 * @since 0.5
-	 * @param bool $send_notice (optional) whether or not to send an e-mail to the former lock owner
-	 */
-
-	function override_lock( $send_notice = true ) {
-
-		//verify current user can edit
-		//consider a specific permission check here
-		if ( !$_POST['post_id'] || !current_user_can( 'edit_post' , $_POST['post_id'] ) || !current_user_can( 'override_document_lock' ) )
-			wp_die( __( 'Not authorized', 'wp-document-revisions') );
-
-		//verify that there is a lock
-		if ( !( $current_owner = wp_check_post_lock($_POST['post_id'] ) ) )
-			die( '-1' );
-
-		//update the lock
-		wp_set_post_lock( $_POST['post_id'] );
-
-		//get the current user ID
-		$current_user = wp_get_current_user();
-
-		if ( apply_filters( 'send_document_override_notice', $send_notice ) )
-			$this->send_override_notice( $_POST['post_id'], $current_owner, $current_user->ID );
-
-		do_action( 'document_lock_override', $_POST['post_id'], $current_user->ID, $current_owner );
-
-		die( '1' );
-
-	}
-
-
-	/**
-	 * E-mails current lock owner to notify them that they lost their file lock
-	 *
-	 * @since 0.5
-	 * @param int $post_id id of document lock being overridden
-	 * @param int $owner_id id of current document owner
-	 * @param int $current_user_id id of user overriding lock
-	 * @return bool true on sucess, false on fail
-	 */
-	function send_override_notice( $post_id, $owner_id , $current_user_id ) {
-
-		//get lock owner's details
-		$lock_owner = get_userdata( $owner_id );
-
-		//get the current user's detaisl
-		$current_user = wp_get_current_user( $current_user_id );
-
-		//get the post
-		$post = get_post( $post_id );
-
-		//build the subject
-		$subject = sprintf( __( '%1$s: %2$s has overridden your lock on %3$s', 'wp-document-revisions' ), get_bloginfo( 'name' ), $current_user->display_name, $post->post_title );
-		$subject = apply_filters( 'lock_override_notice_subject', $subject );
-
-		//build the message
-		$message = sprintf( __('Dear %s:', 'wp-document-revisions' ), $lock_owner->display_name) . "\n\n";
-		$message .= sprintf( __('%1$s (%2$s), has overridden your lock on the document %3$s (%4$s).', 'wp-document-revisions' ), $current_user->display_name,  $current_user->user_email, $post->post_title, get_permalink( $post->ID ) ) . "\n\n";
-		$message .= __('Any changes you have made will be lost.', 'wp-document-revisions' ) . "\n\n";
-		$message .= sprintf( __('- The %s Team', 'wp-document-revisions' ), get_bloginfo( 'name' ) );
-		$message = apply_filters( 'lock_override_notice_message', $message );
-
-		apply_filters( 'document_lock_override_email', $message, $post_id, $current_user_id, $lock_owner );
-
-		//send mail
-		return wp_mail( $lock_owner->user_email, $subject , $message );
-
 	}
 
 
