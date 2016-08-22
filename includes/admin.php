@@ -169,7 +169,7 @@ class Document_Revisions_Admin {
 			'document' => array(
 				__( 'Basic Usage', 'wp-document-revisions' ) =>
 				'<p>' . __( 'This screen allows users to collaboratively edit documents and track their revision history. To begin, enter a title for the document, click <code>Upload New Version</code> and select the file from your computer.', 'wp-document-revisions' ) . '</p>' .
-				'<p>' . __( 'Once successfully uploaded, you can enter a revision log message, assign the document an author.', 'wp-document-revisions' ) . '</p>' .
+				'<p>' . __( 'Once successfully uploaded, you can enter a revision log message and assign the document an author.', 'wp-document-revisions' ) . '</p>' .
 				'<p>' . __( 'When done, simply click <code>Update</code> to save your changes', 'wp-document-revisions' ) . '</p>',
 				__( 'Revision Log', 'wp-document-revisions' ) =>
 				'<p>' . __( 'The revision log provides a short summary of the changes reflected in a particular revision. Used widely in the open-source community, it provides a comprehensive history of the document at a glance.', 'wp-document-revisions' ) . '</p>' .
