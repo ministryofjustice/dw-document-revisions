@@ -51,7 +51,6 @@ class Document_Revisions {
 
 		//CPT/CT
 		add_action( 'init', array( &$this, 'register_cpt' ) );
-		add_action( 'init', array( &$this, 'register_ct' ), 15 ); //note: priority must be > 11 to allow for edit flow support
 		register_activation_hook( __FILE__, array( &$this, 'add_caps' ) );
 		add_filter( 'the_content', array( &$this, 'content_filter' ), 1 );
 		add_action( 'wp_loaded', array( &$this, 'register_term_count_cb' ), 100, 1 );
