@@ -33,8 +33,6 @@ License: GPL3
 
 class Document_Revisions {
 	static $instance;
-	static $key_length = 32;
-	static $meta_key   = 'document_revisions_feed_key';
 	public $version = '2.0.0';
 
 	/**
@@ -51,8 +49,6 @@ class Document_Revisions {
 
 		//CPT/CT
 		add_action( 'init', array( &$this, 'register_cpt' ) );
-		add_action( 'init', array( &$this, 'register_ct' ), 15 ); //note: priority must be > 11 to allow for edit flow support
-		add_action( 'admin_init', array( &$this, 'initialize_workflow_states' ) );
 		register_activation_hook( __FILE__, array( &$this, 'add_caps' ) );
 		add_filter( 'the_content', array( &$this, 'content_filter' ), 1 );
 		add_action( 'wp_loaded', array( &$this, 'register_term_count_cb' ), 100, 1 );
@@ -67,16 +63,13 @@ class Document_Revisions {
 		add_action( 'parse_request', array( &$this, 'ie_cache_fix' ) );
 		add_filter( 'query_vars', array(&$this, 'add_query_var'), 10, 4 );
 		register_activation_hook( __FILE__, 'flush_rewrite_rules' );
-		add_filter( 'default_feed', array( &$this, 'hijack_feed' ), 10, 2);
-		add_action( 'do_feed_revision_log', array( &$this, 'do_feed_revision_log' ) );
-		add_action( 'template_redirect', array( $this, 'revision_feed_auth' ) );
 		add_filter( 'get_sample_permalink_html', array(&$this, 'sample_permalink_html_filter'), 10, 4);
 		add_filter( 'wp_get_attachment_url', array( &$this, 'attachment_url_filter' ), 10, 2 );
 		add_filter( 'image_downsize', array( &$this, 'image_downsize'), 10, 3 );
 		add_filter( 'document_path', array( &$this, 'wamp_document_path_filter' ), 9, 1 );
 		add_filter( 'redirect_canonical', array( &$this, 'redirect_canonical_filter' ), 10, 2 );
 
-		//RSS
+		// Format post titles
 		add_filter( 'private_title_format', array( &$this, 'no_title_prepend' ), 20, 1 );
 		add_filter( 'protected_title_format', array( &$this, 'no_title_prepend' ), 20, 1 );
 		add_filter( 'the_title', array( &$this, 'add_revision_num_to_title' ), 20, 1 );
@@ -87,15 +80,8 @@ class Document_Revisions {
 		add_filter( 'wp_handle_upload_prefilter', array(&$this, 'filename_rewrite' ) );
 		add_filter( 'wp_handle_upload', array( &$this, 'rewrite_file_url' ), 10, 2);
 
-		//locking
-		add_action( 'wp_ajax_override_lock', array( &$this, 'override_lock' ) );
-
 		//cache
 		add_action( 'save_post', array( &$this, 'clear_cache' ), 10, 1 );
-
-		//edit flow
-		add_action( 'init', array( &$this, 'edit_flow_support' ), 11 );
-		add_action( 'init', array( &$this, 'use_workflow_states' ), 50 );
 
 		//load front-end features (shortcode, widgets, etc.)
 		include dirname( __FILE__ ) . '/includes/front-end.php';
@@ -170,66 +156,6 @@ class Document_Revisions {
 		register_post_type( 'document', apply_filters( 'document_revisions_cpt', $args ) );
 
 	}
-
-
-	/**
-	 * Registers custom status taxonomy
-	 * @since 0.5
-	 */
-	function register_ct() {
-
-		$labels = array(
-			'name'              => _x( 'Workflow States', 'taxonomy general name', 'wp-document-revisions' ),
-			'singular_name'     => _x( 'Workflow State', 'taxonomy singular name', 'wp-document-revisions'),
-			'search_items'      => __( 'Search Workflow States', 'wp-document-revisions' ),
-			'all_items'         => __( 'All Workflow States', 'wp-document-revisions' ),
-			'parent_item'       => __( 'Parent Workflow State', 'wp-document-revisions' ),
-			'parent_item_colon' => __( 'Parent Workflow State:', 'wp-document-revisions' ),
-			'edit_item'         => __( 'Edit Workflow State', 'wp-document-revisions' ),
-			'update_item'       => __( 'Update Workflow State', 'wp-document-revisions' ),
-			'add_new_item'      => __( 'Add New Workflow State', 'wp-document-revisions' ),
-			'new_item_name'     => __( 'New Workflow State Name', 'wp-document-revisions' ),
-			'menu_name'         => __( 'Workflow States', 'wp-document-revisions' ),
-		);
-
-		register_taxonomy( 'workflow_state', array('document'), apply_filters( 'document_revisions_ct', array(
-					'hierarchical'          => false,
-					'labels'                => $labels,
-					'show_ui'               => true,
-					'rewrite'               => false,
-					'update_count_callback' => array( &$this, 'term_count_cb' ),
-				) ) );
-
-	}
-
-
-	/**
-	 * Propagates initial workflow states on plugin activation
-	 * @since 0.5
-	 * @return unknown
-	 */
-	function initialize_workflow_states() {
-
-		$terms = get_terms( 'workflow_state', array( 'hide_empty' => false ) );
-
-		if ( !empty( $terms ) )
-			return false;
-
-		$states = array(
-			__('In Progress', 'wp-document-revisions')   => __('Document is in the process of being written', 'wp-document-revisions'),
-			__('Initial Draft', 'wp-document-revisions') => __('Document is being edited and refined', 'wp-document-revisions'),
-			__('Under Review', 'wp-document-revisions')  => __('Document is pending final review', 'wp-document-revisions'),
-			__('Final', 'wp-document-revisions')         => __('Document is in its final form', 'wp-document-revisions'),
-		);
-
-		$states = apply_filters( 'default_workflow_states', $states );
-
-		foreach ( $states as $state => $desc ) {
-			wp_insert_term( $state, 'workflow_state', array( 'description' => $desc ) );
-		}
-
-	}
-
 
 	/**
 	 * Defaults document visibility to private
@@ -409,9 +335,6 @@ class Document_Revisions {
 		//revisions in the form of yyyy/mm/[slug]-revision-##.[extension], yyyy/mm/[slug]-revision-##.[extension]/, yyyy/mm/[slug]-revision-##/ and yyyy/mm/[slug]-revision-##
 		$my_rules[ $slug . '/([0-9]{4})/([0-9]{1,2})/([^.]+)-' . __( 'revision', 'wp-document-revisions' ) . '-([0-9]+)\.[A-Za-z0-9]{3,4}/?$'] = 'index.php?year=$matches[1]&monthnum=$matches[2]&document=$matches[3]&revision=$matches[4]';
 
-		//revision feeds in the form of yyyy/mm/[slug]-revision-##.[extension]/feed/, yyyy/mm/[slug]-revision-##/feed/, etc.
-		$my_rules[ $slug . '/([0-9]{4})/([0-9]{1,2})/([^.]+)(\.[A-Za-z0-9]{3,4})?/feed/?$'] = 'index.php?year=$matches[1]&monthnum=$matches[2]&document=$matches[3]&feed=feed';
-
 		//documents in the form of yyyy/mm/[slug]-revision-##.[extension], yyyy/mm/[slug]-revision-##.[extension]/
 		$my_rules[ $slug . '/([0-9]{4})/([0-9]{1,2})/([^.]+)\.[A-Za-z0-9]{3,4}/?$'] = 'index.php?year=$matches[1]&monthnum=$matches[2]&document=$matches[3]';
 
@@ -564,31 +487,6 @@ class Document_Revisions {
 		wp_cache_set( $postID, $revs, 'document_revisions' );
 
 		return $revs;
-
-	}
-
-
-	/**
-	 * Returns a modified WP Query object of a document and its revisions
-	 * Corrects the authors bug
-	 * @since 1.0.4
-	 * @param int $postID the ID of the document
-	 * @param bool $feed (optional) whether this is a feed
-	 * @return obj|bool the WP_Query object, false on failure
-	 */
-	function get_revision_query( $postID, $feed = false ) {
-
-		$posts = $this->get_revisions( $postID );
-
-		if ( !$posts )
-			return false;
-
-		$rev_query = new WP_Query();
-		$rev_query->posts = $posts;
-		$rev_query->post_count = sizeof( $posts );
-		$rev_query->is_feed = $feed;
-
-		return $rev_query;
 
 	}
 
@@ -1082,167 +980,6 @@ class Document_Revisions {
 
 
 	/**
-	 * Callback to handle revision RSS feed
-	 * @since 0.5
-	 */
-	function do_feed_revision_log() {
-
-		//because we're in function scope, pass $post as a global
-		global $post;
-
-		//remove this filter to A) prevent trimming and B) to prevent WP from using the attachID if there's no revision log
-		remove_filter( 'get_the_excerpt', 'wp_trim_excerpt'  );
-		remove_filter( 'get_the_excerpt', 'twentyeleven_custom_excerpt_more' );
-
-		//include feed and die
-		include dirname( __FILE__ ) . '/includes/revision-feed.php';
-
-		global $wpdr;
-
-		return;
-
-	}
-
-
-	/**
-	 * Intercepts RSS feed redirect and forces our custom feed
-	 *
-	 * Note: Use `add_filter( 'document_custom_feed', '__return_false' )` to shortcircuit
-	 *
-	 * @since 0.5
-	 * @param string $default the original feed
-	 * @return string the slug for our feed
-	 */
-	function hijack_feed( $default ) {
-
-		if ( !$this->verify_post_type() || !apply_filters( 'document_custom_feed', true ) )
-			return $default;
-
-		return 'revision_log';
-
-	}
-
-
-	/**
-	 * Verifies that users are auth'd to view a revision feed
-	 *
-	 * Note: Use `add_filter( 'document_verify_feed_key', '__return_false' )` to shortcircuit
-	 *
-	 * @since 0.5
-	 */
-	function revision_feed_auth() {
-
-		if ( !$this->verify_post_type() || !apply_filters( 'document_verify_feed_key', true ) )
-			return;
-
-		if ( is_feed() && !$this->validate_feed_key() )
-				wp_die( __( 'Sorry, this is a private feed.', 'wp-document-revisions' ) );
-
-	}
-
-
-	/**
-	 * Checks feed key before serving revision RSS feed
-	 * @since 0.5
-	 * @return bool
-	 */
-	function validate_feed_key() {
-
-		global $wpdb;
-
-		//verify key exists
-		if ( empty( $_GET['key'] ) )
-			return false;
-
-		//make alphanumeric
-		$key = preg_replace( '/[^a-z0-9]/i', '', $_GET['key'] );
-
-		//verify length
-		if ( self::$key_length != strlen( $key ) )
-			return false;
-
-		//lookup key
-		if ( $wpdb->get_var( $wpdb->prepare( "SELECT user_id FROM $wpdb->usermeta WHERE meta_key = %s AND meta_value = %s", $wpdb->prefix . self::$meta_key, $key ) ) )
-			return true;
-
-		return false;
-	}
-
-
-	/**
-	 * Ajax Callback to change filelock on lock override
-	 *
-	 * @since 0.5
-	 * @param bool $send_notice (optional) whether or not to send an e-mail to the former lock owner
-	 */
-
-	function override_lock( $send_notice = true ) {
-
-		//verify current user can edit
-		//consider a specific permission check here
-		if ( !$_POST['post_id'] || !current_user_can( 'edit_post' , $_POST['post_id'] ) || !current_user_can( 'override_document_lock' ) )
-			wp_die( __( 'Not authorized', 'wp-document-revisions') );
-
-		//verify that there is a lock
-		if ( !( $current_owner = wp_check_post_lock($_POST['post_id'] ) ) )
-			die( '-1' );
-
-		//update the lock
-		wp_set_post_lock( $_POST['post_id'] );
-
-		//get the current user ID
-		$current_user = wp_get_current_user();
-
-		if ( apply_filters( 'send_document_override_notice', $send_notice ) )
-			$this->send_override_notice( $_POST['post_id'], $current_owner, $current_user->ID );
-
-		do_action( 'document_lock_override', $_POST['post_id'], $current_user->ID, $current_owner );
-
-		die( '1' );
-
-	}
-
-
-	/**
-	 * E-mails current lock owner to notify them that they lost their file lock
-	 *
-	 * @since 0.5
-	 * @param int $post_id id of document lock being overridden
-	 * @param int $owner_id id of current document owner
-	 * @param int $current_user_id id of user overriding lock
-	 * @return bool true on sucess, false on fail
-	 */
-	function send_override_notice( $post_id, $owner_id , $current_user_id ) {
-
-		//get lock owner's details
-		$lock_owner = get_userdata( $owner_id );
-
-		//get the current user's detaisl
-		$current_user = wp_get_current_user( $current_user_id );
-
-		//get the post
-		$post = get_post( $post_id );
-
-		//build the subject
-		$subject = sprintf( __( '%1$s: %2$s has overridden your lock on %3$s', 'wp-document-revisions' ), get_bloginfo( 'name' ), $current_user->display_name, $post->post_title );
-		$subject = apply_filters( 'lock_override_notice_subject', $subject );
-
-		//build the message
-		$message = sprintf( __('Dear %s:', 'wp-document-revisions' ), $lock_owner->display_name) . "\n\n";
-		$message .= sprintf( __('%1$s (%2$s), has overridden your lock on the document %3$s (%4$s).', 'wp-document-revisions' ), $current_user->display_name,  $current_user->user_email, $post->post_title, get_permalink( $post->ID ) ) . "\n\n";
-		$message .= __('Any changes you have made will be lost.', 'wp-document-revisions' ) . "\n\n";
-		$message .= sprintf( __('- The %s Team', 'wp-document-revisions' ), get_bloginfo( 'name' ) );
-		$message = apply_filters( 'lock_override_notice_message', $message );
-
-		apply_filters( 'document_lock_override_email', $message, $post_id, $current_user_id, $lock_owner );
-
-		//send mail
-		return wp_mail( $lock_owner->user_email, $subject , $message );
-
-	}
-
-
-	/**
 	 * Adds doc-specific caps to all roles so that 3rd party plugins can manage them
 	 * Gives admins all caps
 
@@ -1355,18 +1092,16 @@ class Document_Revisions {
 
 
 	/**
-	 * Removes Private or Protected from document titles in RSS feeds
+	 * Removes Private or Protected from document titles
 	 * @since 1.0
 	 * @param string $prepend the sprintf formatted string to prepend to the title
 	 * @return string just the string
 	 */
 	function no_title_prepend( $prepend ) {
-
 		if ( !$this->verify_post_type() )
 			return $prepend;
 
 		return '%s';
-
 	}
 
 
@@ -1385,12 +1120,7 @@ class Document_Revisions {
 
 		//if this is a document, and not a revision, just filter and return the title
 		if ( $post->post_type != 'revision' ) {
-
-			if ( is_feed() )
-				$title = sprintf( __( '%s - Latest Revision', 'wp-document-revisions'), $title );
-
 			return apply_filters( 'document_title',  $title );
-
 		}
 
 		//get revision num
@@ -1421,68 +1151,6 @@ class Document_Revisions {
 			return $content;
 
 		return '';
-
-	}
-
-
-	/**
-	 * Provides support for edit flow and disables the default workflow state taxonomy
-	 * @return unknown
-	 */
-	function edit_flow_support() {
-
-		global $edit_flow;
-
-		//verify edit flow is enabled
-		if ( !class_exists( 'EF_Custom_Status' ) || !apply_filters( 'document_revisions_use_edit_flow', true ) )
-			return false;
-
-		//verify proper firing order
-		if ( !did_action( 'ef_init' ) ) {
-			_doing_it_wrong( 'edit_flow_support', 'Cannot call before ef_init has fired', null );
-			return false;
-		}
-
-		//verify custom_status is enabled
-		if ( !$edit_flow->custom_status->module_enabled( 'custom_status' ) )
-			return false;
-
-		//prevent errors if options aren't init'd yet
-		if ( !isset( $edit_flow->custom_status->module->options->post_types['document'] ) )
-			return false;
-
-		//check if enabled
-		if ( $edit_flow->custom_status->module->options->post_types['document'] == 'off' )
-			return false;
-
-		add_filter( 'document_use_workflow_states', '__return_false' );
-
-		return true;
-
-	}
-
-
-	/**
-	 * Toggles workflow states on and off
-	 * @return bool true if workflow states are on, otherwise false
-	 */
-	function use_workflow_states() {
-
-		return apply_filters( 'document_use_workflow_states', true );
-
-	}
-
-
-	/**
-	 * Removes front-end hooks to add workflow state support
-	 */
-	function disable_workflow_states() {
-
-		if ( $this->use_workflow_states() )
-			return;
-
-		remove_action( 'admin_init', array( &$this, 'initialize_workflow_states' ) );
-		remove_action( 'init', array( &$this, 'register_ct' ), 15 );
 
 	}
 
