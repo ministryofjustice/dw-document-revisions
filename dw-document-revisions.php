@@ -1393,9 +1393,9 @@ class Document_Revisions {
 			unset($mime_types['ppt']);
 			unset($mime_types['pptx']);
 			unset($mime_types['rtf']);
-			unset($mime_types['rtf']);
 			unset($mime_types['tsv']);
 			unset($mime_types['txt']);
+			unset($mime_types['xls']);
 			unset($mime_types['xlsx']);
 		}
 		return $mime_types;
