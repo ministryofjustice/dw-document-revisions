@@ -83,6 +83,10 @@ class Document_Revisions {
 		//cache
 		add_action( 'save_post', array( &$this, 'clear_cache' ), 10, 1 );
 
+		//File Restrict
+		add_filter('upload_mimes', array(&$this, 'restrict_mime_types'), 1, 1);
+		add_filter('gettext', array(&$this, 'alter_file_type_error_text'), 10, 3);
+
 		//load front-end features (shortcode, widgets, etc.)
 		include dirname( __FILE__ ) . '/includes/front-end.php';
 		new Document_Revisions_Front_End( $this );
@@ -1368,6 +1372,46 @@ class Document_Revisions {
 
 		return $wp;
 
+	}
+	/**
+	 * Restricts the mime types on the media uploader if using the Media Library
+	 * @param array $mime_types - Array of current accepted mime types
+	 * @return array $mime_types - Altered Array of accepted mime types
+	 * Filter: upload_mimes
+	 */
+	function restrict_mime_types($mime_types){
+		$screen = get_current_screen();
+
+		if($screen->base != 'async-upload') {
+			unset($mime_types['csv']);
+			unset($mime_types['doc']);
+			unset($mime_types['docx']);
+			unset($mime_types['odp']);
+			unset($mime_types['ods']);
+			unset($mime_types['odt']);
+			unset($mime_types['pdf']);
+			unset($mime_types['ppt']);
+			unset($mime_types['pptx']);
+			unset($mime_types['rtf']);
+			unset($mime_types['tsv']);
+			unset($mime_types['txt']);
+			unset($mime_types['xls']);
+			unset($mime_types['xlsx']);
+		}
+		return $mime_types;
+	}
+	/**
+	 * Alters the invalid file type error message used by the media uploader
+	 * @param string $translated - The translated string
+	 * @param string $original - The original string to be translated
+	 * @return string $translated - The translated string
+	 * Filter: gettext
+	 */
+	function alter_file_type_error_text($translated, $original) {
+		if($original == 'This file type is not allowed. Please try another.') {
+			return 'This file type is not allowed. Please try uploading to the documents section or another file type.';
+		}
+		return $translated;
 	}
 
 }
