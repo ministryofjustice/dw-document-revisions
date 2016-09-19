@@ -1373,6 +1373,12 @@ class Document_Revisions {
 		return $wp;
 
 	}
+	/**
+	 * Restricts the mime types on the media uploader if not in the Documents Section
+	 * @param array $mime_types - Array of current accepted mime types
+	 * @return array $mime_types - New array accepted mime types
+	 * Filter: upload_mimes
+	 */
 	function restrict_mime_types($mime_types){
 		$screen = get_current_screen();
 
@@ -1394,6 +1400,13 @@ class Document_Revisions {
 		}
 		return $mime_types;
 	}
+	/**
+	 * Alters the invalid file type error message used by the media uploader
+	 * @param string $translated - The translated string
+	 * @param string $original - The original string to be translated
+	 * @return string $translated - The translated string
+	 * Filter: gettext
+	 */
 	function alter_file_type_error_text($translated, $original) {
 		if($original == 'This file type is not allowed. Please try another.') {
 			return 'This file type is not allowed. Please try uploading to the documents section or another file type.';
