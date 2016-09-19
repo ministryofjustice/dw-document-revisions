@@ -1374,7 +1374,7 @@ class Document_Revisions {
 
 	}
 	/**
-	 * Restricts the mime types on the media uploader if not in the Documents Section
+	 * Restricts the mime types on the media uploader if using the Media Library
 	 * @param array $mime_types - Array of current accepted mime types
 	 * @return array $mime_types - Altered Array of accepted mime types
 	 * Filter: upload_mimes
