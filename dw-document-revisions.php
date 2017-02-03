@@ -1397,6 +1397,7 @@ class Document_Revisions {
 			unset($mime_types['txt']);
 			unset($mime_types['xls']);
 			unset($mime_types['xlsx']);
+			unset($mime_types['xlsb']);
 		}
 		return $mime_types;
 	}
