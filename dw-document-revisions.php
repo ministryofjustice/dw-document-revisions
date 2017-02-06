@@ -1398,6 +1398,7 @@ class Document_Revisions {
 			unset($mime_types['xls']);
 			unset($mime_types['xlsx']);
 			unset($mime_types['xlsb']);
+            unset($mime_types['dot']);
 		}
 		return $mime_types;
 	}
