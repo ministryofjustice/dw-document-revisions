@@ -3,7 +3,7 @@
 Plugin Name: DW Document Revisions
 Description: A document management and version control plugin for WordPress that allows teams of any size to collaboratively edit files and manage their workflow. Forked from the WP Document Revisions Plugin by Ben Balter (http://ben.balter.com).
 Version: 1.0.0
-Author: Rob Lowe 
+Author: Rob Lowe
 License: GPL3
 */
 
@@ -636,7 +636,7 @@ class Document_Revisions {
 		//fake the filename
 		$filename = $post->post_name;
 		$filename .= ( $version == '' ) ? '' : __( '-revision-', 'wp-document-revisions' ) . $version;
-		
+
 		//we want the true attachment URL, not the permalink, so temporarily remove our filter
 		remove_filter( 'wp_get_attachment_url', array( &$this, 'attachment_url_filter' ) );
 		$filename .= $this->get_extension( wp_get_attachment_url( $revision->ID ) );
@@ -1398,15 +1398,15 @@ class Document_Revisions {
 			unset($mime_types['xls']);
 			unset($mime_types['xlsx']);
 			unset($mime_types['xlsb']);
-            unset($mime_types['xltx']);
-            unset($mime_types['dot']);
+			unset($mime_types['xltx']);
+			unset($mime_types['dot']);
 		}
 		return $mime_types;
 	}
 	/**
 	 * Alters the invalid file type error message used by the media uploader
 	 * @param string $translated - The translated string
-	 * @param string $original - The original string to be translated 
+	 * @param string $original - The original string to be translated
 	 * @return string $translated - The translated string
 	 * Filter: gettext
 	 */
