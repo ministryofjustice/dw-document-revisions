@@ -1406,7 +1406,7 @@ class Document_Revisions {
 	/**
 	 * Alters the invalid file type error message used by the media uploader
 	 * @param string $translated - The translated string
-	 * @param string $original - The original string to be translated
+	 * @param string $original - The original string to be translated 
 	 * @return string $translated - The translated string
 	 * Filter: gettext
 	 */
