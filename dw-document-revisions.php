@@ -135,7 +135,7 @@ class Document_Revisions {
 			'not_found'          => __( 'No documents found', 'wp-document-revisions' ),
 			'not_found_in_trash' => __( 'No documents found in Trash', 'wp-document-revisions' ),
 			'parent_item_colon'  => '',
-			'menu_name'          => __( 'Documents', 'wp-document-revisions' ),
+			'menu_name'          => __( 'Documents MoJ', 'wp-document-revisions' ),
 			'all_items'          => __( 'All Documents', 'wp-document-revisions' ),
 		);
 
