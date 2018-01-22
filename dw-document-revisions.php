@@ -84,7 +84,6 @@ class Document_Revisions {
 		add_action( 'save_post', array( &$this, 'clear_cache' ), 10, 1 );
 
 		//File Restrict
-		add_filter('upload_mimes', array(&$this, 'restrict_mime_types'), 1, 1);
 		add_filter('gettext', array(&$this, 'alter_file_type_error_text'), 10, 3);
 
 		//load front-end features (shortcode, widgets, etc.)
