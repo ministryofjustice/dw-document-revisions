@@ -33,7 +33,7 @@ License: GPL3
 
 class Document_Revisions {
 	static $instance;
-	public $version = '2.0.0';
+	public $version = '2.1.0';
 
 	/**
 	 * Initiates an instance of the class and adds hooks
@@ -376,6 +376,7 @@ class Document_Revisions {
 	function permalink( $link, $post, $leavename, $sample = '' ) {
 
 		global $wp_rewrite;
+
 		$revision_num = false;
 
 		//if this isn't our post type, kick
@@ -397,13 +398,14 @@ class Document_Revisions {
 			return apply_filters( 'document_permalink', $link, $post );
 		}
 
+
 		// build documents/yyyy/mm/slug
 		$extension = $this->get_file_type( $post );
-
+	
 		$timestamp = strtotime($post->post_date);
 		$link = home_url() . '/' . $this->document_slug() .'/' . date('Y', $timestamp) . '/' . date('m', $timestamp) . '/';
 		$link .= ( $leavename ) ? '%document%' : $post->post_name;
-		$link .= $extension ;
+		$link .= $extension;
 
 		$link = apply_filters( 'document_permalink', $link, $post );
 
@@ -652,11 +654,12 @@ class Document_Revisions {
 		@header( 'Content-Length: ' . filesize( $file ) );
 
 		//modified
+		@header( 'Cache-Control: no-cache' );
+		@header( 'Pragma: no-cache' );
 		$last_modified = gmdate( 'D, d M Y H:i:s', filemtime( $file ) );
 		$etag = '"' . md5( $last_modified ) . '"';
 		@header( "Last-Modified: $last_modified GMT" );
 		@header( 'ETag: ' . $etag );
-		@header( 'Expires: ' . gmdate( 'D, d M Y H:i:s', time() + 100000000 ) . ' GMT' );
 
 		// Support for Conditional GET
 		$client_etag = isset( $_SERVER['HTTP_IF_NONE_MATCH'] ) ? stripslashes( $_SERVER['HTTP_IF_NONE_MATCH'] ) : false;
