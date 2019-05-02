@@ -2,8 +2,8 @@
 /*
 Plugin Name: DW Document Revisions
 Description: A document management and version control plugin for WordPress that allows teams of any size to collaboratively edit files and manage their workflow. Forked from the WP Document Revisions Plugin by Ben Balter (http://ben.balter.com).
-Version: 1.0.0
-Author: Rob Lowe
+Version: 2.1.0
+Author: Ministry of Justice
 License: GPL3
 */
 
